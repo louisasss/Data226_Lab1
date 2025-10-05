@@ -17,7 +17,7 @@ def return_snowflake_conn():
 
 
 @task
-def train(cur, train_input_table, train_view, forecast_function_name):
+def train(train_input_table, train_view, forecast_function_name):
 
     create_view_sql = f"""CREATE OR REPLACE VIEW {train_view} AS SELECT
         DATE, CLOSE, SYMBOL
@@ -31,6 +31,7 @@ def train(cur, train_input_table, train_view, forecast_function_name):
         CONFIG_OBJECT => {{ 'ON_ERROR': 'SKIP' }}
     );"""
 
+    cur = return_snowflake_conn()
     try:
         cur.execute(create_view_sql)
         cur.execute(create_model_sql)
@@ -38,10 +39,12 @@ def train(cur, train_input_table, train_view, forecast_function_name):
     except Exception as e:
         print(e)
         raise
+    finally:
+        cur.close()
 
 
 @task
-def predict(cur, forecast_function_name, train_input_table, forecast_table, final_table):
+def predict(forecast_function_name, train_input_table, forecast_table, final_table):
     """
      - Generate predictions and store the results to a table named forecast_table.
      - Union your predictions with your historical data, then create the final table
@@ -64,12 +67,15 @@ def predict(cur, forecast_function_name, train_input_table, forecast_table, fina
         SELECT replace(series, '"', '') as SYMBOL, ts as DATE, NULL AS actual, forecast, lower_bound, upper_bound
         FROM {forecast_table};"""
 
+    cur = return_snowflake_conn()
     try:
         cur.execute(make_prediction_sql)
         cur.execute(create_final_table_sql)
     except Exception as e:
         print(e)
         raise
+    finally:
+        cur.close()
 
 with DAG(
     dag_id = 'TrainPredict',
@@ -84,8 +90,7 @@ with DAG(
     forecast_table = "adhoc.lab1_market_data_forecast"
     forecast_function_name = "analytics.lab1_predict_market_prices"
     final_table = "analytics.lab1_market_data"
-    cur = return_snowflake_conn()
 
-    train_task = train(cur, train_input_table, train_view, forecast_function_name)
-    predict_task = predict(cur, forecast_function_name, train_input_table, forecast_table, final_table)
+    train_task = train(train_input_table, train_view, forecast_function_name)
+    predict_task = predict(forecast_function_name, train_input_table, forecast_table, final_table)
     train_task >> predict_task
