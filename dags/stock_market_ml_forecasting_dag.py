@@ -18,7 +18,10 @@ def return_snowflake_conn():
 
 @task
 def train(train_input_table, train_view, forecast_function_name):
-
+    """
+    Creates a view that stored relevant historical stock information for the forecast model.
+    A forecast model is trained with the created view and can be used to generate forecasts. 
+    """
     create_view_sql = f"""CREATE OR REPLACE VIEW {train_view} AS SELECT
         DATE, CLOSE, SYMBOL
         FROM {train_input_table};"""
@@ -48,8 +51,8 @@ def train(train_input_table, train_view, forecast_function_name):
 @task
 def predict(forecast_function_name, train_input_table, forecast_table, final_table):
     """
-     - Generate predictions and store the results to a table named forecast_table.
-     - Union your predictions with your historical data, then create the final table
+     Generate a 7-day prediction and store the results to a table named market_data_forecast.
+     The predictions are unioned with historical data, creating a final table complete with both historical and forecasted stock closing prices.
     """
     make_prediction_sql = f"""BEGIN
         -- This is the step that creates your predictions.
@@ -84,7 +87,7 @@ with DAG(
     start_date = datetime(2025,10,3),
     catchup = False,
     tags=['ML', 'ELT'],
-    schedule = '0 0 * * *'
+    schedule = '10 0 * * *'
 ) as dag:
 
     train_input_table = "raw.lab1_market_data"

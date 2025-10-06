@@ -11,34 +11,42 @@ import requests
 import yfinance as yf
 
 def return_snowflake_conn():
+  """
+  Create connection with Snowflake
+  """
+  # Initialize the SnowflakeHook
+  hook = SnowflakeHook(snowflake_conn_id='snowflake_conn')
 
-    # Initialize the SnowflakeHook
-    hook = SnowflakeHook(snowflake_conn_id='snowflake_conn')
+  # Execute the query and fetch results
+  conn = hook.get_conn()
+  return conn.cursor()
 
-    # Execute the query and fetch results
-    conn = hook.get_conn()
-    return conn.cursor()
-
-# EXTRACT
+# ------------------- EXTRACT -------------------
 @task
 def extract(symbol1, symbol2):
+  """
+  Download 180 days of stock data for 2 symbols.
+  """
   stock_data = yf.download([f'{symbol1}', f'{symbol2}'], period = '180d')
   return stock_data
 
-# TRANSFORM
+# ------------------- TRANSFORM -------------------
 @task
 def transform(stock_data):
   """
-  formats the last 180 days of the stock prices of the two stocks into the format of the table
+  Formats the last 180 days of the stock prices of the two stocks into the format of the table
   """
   stock_data = stock_data.stack()
   transformed_stock_data = stock_data.reset_index()
 
   return transformed_stock_data
 
-# LOAD; SQL transaction for loading/deleting records
+# ------------------- LOAD -------------------
 @task
 def load(stock_data, target_table):
+  """
+  Full refresh load into Snowflake.
+  """
   cur = return_snowflake_conn()
   try:
       cur.execute("BEGIN;")
