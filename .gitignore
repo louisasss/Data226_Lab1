@@ -12,4 +12,9 @@ __pycache__/
 # Airflow-specific
 airflow-webserver.pid
 dags/__pycache__/
-*.log
+
+# Docker
+*.pid
+*.sock
+*.db
+*.sqlite
