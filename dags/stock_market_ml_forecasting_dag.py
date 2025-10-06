@@ -33,6 +33,8 @@ def train(train_input_table, train_view, forecast_function_name):
 
     cur = return_snowflake_conn()
     try:
+        cur.execute("CREATE SCHEMA IF NOT EXISTS analytics;")
+        cur.execute("CREATE SCHEMA IF NOT EXISTS adhoc;")
         cur.execute(create_view_sql)
         cur.execute(create_model_sql)
         cur.execute(f"CALL {forecast_function_name}!SHOW_EVALUATION_METRICS();")
